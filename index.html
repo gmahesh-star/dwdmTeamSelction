@@ -281,6 +281,49 @@
         </div>
     </div>
 
+    <!-- Edit Student Modal (Admin Only) -->
+    <div id="editStudentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="terminal-box rounded p-6 max-w-md w-full mx-4 bg-white">
+            <div class="flex justify-between items-center mb-4 pb-3 border-b-2 border-dashed border-gray-300">
+                <h2 class="text-lg font-bold text-gray-800 terminal-header">
+                    <span class="text-gray-500">></span> EDIT_STUDENT
+                </h2>
+                <button id="closeEditModalBtn" class="text-gray-600 hover:text-black font-bold">
+                    [X]
+                </button>
+            </div>
+            <div class="space-y-4">
+                <input type="hidden" id="editStudentOldRollNo">
+                <div>
+                    <label class="text-sm text-gray-600 block mb-1">Student Name:</label>
+                    <input type="text" id="editStudentName" placeholder="[student_name]" 
+                           class="w-full px-3 py-2 border-2 border-dashed border-gray-400 rounded text-sm focus:outline-none focus:border-solid focus:border-gray-700 bg-white" 
+                           style="font-family: 'Roboto Mono', monospace;">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-600 block mb-1">Roll Number:</label>
+                    <input type="text" id="editStudentRollNo" placeholder="[roll_number]" 
+                           class="w-full px-3 py-2 border-2 border-dashed border-gray-400 rounded text-sm focus:outline-none focus:border-solid focus:border-gray-700 bg-white" 
+                           style="font-family: 'Roboto Mono', monospace;">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-600 block mb-1">Section:</label>
+                    <select id="editStudentSection" 
+                            class="w-full px-3 py-2 border-2 border-dashed border-gray-400 rounded text-sm focus:outline-none focus:border-solid focus:border-gray-700 bg-white" 
+                            style="font-family: 'Roboto Mono', monospace;">
+                        <option value="A">Section A</option>
+                        <option value="B">Section B</option>
+                    </select>
+                </div>
+                <div id="editError" class="text-red-600 text-xs hidden"></div>
+                <button id="saveEditBtn" 
+                        class="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition border-2 border-blue-600 font-semibold text-sm">
+                    <i class="fas fa-save mr-2"></i>[SAVE_CHANGES]
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Footer -->
     <footer class="bg-gray-800 text-white py-6 mt-8">
         <div class="container mx-auto px-4 text-center">

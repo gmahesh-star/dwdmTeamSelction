@@ -145,9 +145,12 @@ function adminLogin() {
     
     if (isValidAdmin) {
         isAdmin = true;
+        console.log('Admin logged in. isAdmin set to:', isAdmin); // Debug log
         sessionStorage.setItem('adminLoggedIn', 'true');
         updateAdminUI();
         closeAdminModal();
+        renderStudentList(); // Re-render to show edit buttons
+        renderTeams(); // Re-render teams to show admin controls
         showNotification('Admin login successful!', 'success');
     } else {
         errorDiv.textContent = 'Invalid username or password!';
@@ -163,6 +166,8 @@ function adminLogout() {
     isAdmin = false;
     sessionStorage.removeItem('adminLoggedIn');
     updateAdminUI();
+    renderStudentList(); // Re-render to hide edit buttons
+    renderTeams(); // Re-render teams
     showNotification('Admin logged out', 'info');
 }
 
@@ -186,6 +191,128 @@ function closeAdminModal() {
     document.getElementById('adminModal').classList.add('hidden');
     document.getElementById('adminModal').classList.remove('flex');
     document.getElementById('loginError').classList.add('hidden');
+}
+
+// Open edit student modal (admin only)
+function openEditStudentModal(rollNo) {
+    if (!isAdmin) {
+        showNotification('Admin access required!', 'error');
+        return;
+    }
+    
+    const student = students.find(s => s.rollNo === rollNo);
+    if (!student) {
+        showNotification('Student not found!', 'error');
+        return;
+    }
+    
+    // Populate form
+    document.getElementById('editStudentOldRollNo').value = student.rollNo;
+    document.getElementById('editStudentName').value = student.name;
+    document.getElementById('editStudentRollNo').value = student.rollNo;
+    document.getElementById('editStudentSection').value = student.section;
+    
+    // Show modal
+    document.getElementById('editStudentModal').classList.remove('hidden');
+    document.getElementById('editStudentModal').classList.add('flex');
+    document.getElementById('editStudentName').focus();
+}
+
+// Close edit student modal
+function closeEditStudentModal() {
+    document.getElementById('editStudentModal').classList.add('hidden');
+    document.getElementById('editStudentModal').classList.remove('flex');
+    document.getElementById('editError').classList.add('hidden');
+}
+
+// Save edited student details
+function saveEditedStudent() {
+    const oldRollNo = document.getElementById('editStudentOldRollNo').value;
+    const newName = document.getElementById('editStudentName').value.trim();
+    const newRollNo = document.getElementById('editStudentRollNo').value.trim();
+    const newSection = document.getElementById('editStudentSection').value;
+    const errorDiv = document.getElementById('editError');
+    
+    // Validation
+    if (!newName || !newRollNo) {
+        errorDiv.textContent = 'Name and Roll Number are required!';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+    
+    // Check if new roll number already exists (and it's different from old one)
+    if (newRollNo !== oldRollNo && students.some(s => s.rollNo === newRollNo)) {
+        errorDiv.textContent = 'Roll Number already exists!';
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+    
+    // Find and update student in all arrays
+    const updateStudent = (studentArray) => {
+        const student = studentArray.find(s => s.rollNo === oldRollNo);
+        if (student) {
+            student.name = newName;
+            student.rollNo = newRollNo;
+            student.section = newSection;
+        }
+    };
+    
+    updateStudent(students);
+    updateStudent(availableStudents);
+    
+    // Update in teams if student is in a team
+    teams.forEach(team => {
+        updateStudent(team.members);
+    });
+    
+    // Update in Firebase
+    if (db) {
+        // Update student in students collection
+        db.ref('students').once('value', (snapshot) => {
+            const firebaseStudents = snapshot.val();
+            if (firebaseStudents) {
+                const studentKey = Object.keys(firebaseStudents).find(
+                    key => firebaseStudents[key].rollNo === oldRollNo
+                );
+                if (studentKey) {
+                    db.ref(`students/${studentKey}`).update({
+                        name: newName,
+                        rollNo: newRollNo,
+                        section: newSection
+                    });
+                }
+            }
+        });
+        
+        // Update in teams if present
+        db.ref('teams').once('value', (snapshot) => {
+            const firebaseTeams = snapshot.val();
+            if (firebaseTeams) {
+                Object.keys(firebaseTeams).forEach(teamKey => {
+                    const team = firebaseTeams[teamKey];
+                    const memberIndex = team.members.findIndex(m => m.rollNo === oldRollNo);
+                    if (memberIndex !== -1) {
+                        db.ref(`teams/${teamKey}/members/${memberIndex}`).update({
+                            name: newName,
+                            rollNo: newRollNo,
+                            section: newSection
+                        });
+                    }
+                });
+            }
+        });
+    }
+    
+    // Save to localStorage as backup
+    saveToLocalStorage();
+    
+    // Update UI
+    renderStudentList();
+    renderTeams();
+    updateStatistics();
+    closeEditStudentModal();
+    
+    showNotification('Student details updated successfully!', 'success');
 }
 
 // Initialize Firebase listeners
@@ -395,6 +522,8 @@ function renderStudentList() {
         return;
     }
 
+    console.log('Rendering student list. isAdmin:', isAdmin); // Debug log
+    
     const studentsHTML = filteredStudents.map(student => `
         <div class="flex items-center justify-between p-3 bg-white rounded student-item"
              data-rollno="${student.rollNo}">
@@ -402,9 +531,17 @@ function renderStudentList() {
                 <p class="font-semibold text-gray-900 text-sm">${student.name}</p>
                 <p class="text-xs text-gray-500">${student.rollNo} <span class="text-gray-400">| Sec ${student.section}</span></p>
             </div>
-            <button class="bg-black text-white px-3 py-1 rounded hover:bg-gray-800 transition text-xs font-semibold add-student-btn border border-black">
-                [+ADD]
-            </button>
+            <div class="flex gap-2">
+                ${isAdmin ? `
+                <button class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition text-xs font-semibold edit-student-btn border border-blue-600"
+                        data-rollno="${student.rollNo}">
+                    <i class="fas fa-edit"></i> [EDIT]
+                </button>
+                ` : ''}
+                <button class="bg-black text-white px-3 py-1 rounded hover:bg-gray-800 transition text-xs font-semibold add-student-btn border border-black">
+                    [+ADD]
+                </button>
+            </div>
         </div>
     `).join('');
     
@@ -417,6 +554,15 @@ function renderStudentList() {
             e.stopPropagation();
             const rollNo = e.target.closest('.student-item').dataset.rollno;
             addStudentToTeam(rollNo);
+        });
+    });
+    
+    // Attach edit button handlers (admin only)
+    document.querySelectorAll('.edit-student-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const rollNo = btn.dataset.rollno;
+            openEditStudentModal(rollNo);
         });
     });
 }
@@ -566,14 +712,22 @@ function renderTeams() {
             <div class="space-y-2">
                 ${team.members.map((member, index) => `
                     <div class="bg-gray-50 p-2 rounded border border-dashed border-gray-300">
-                        <div class="flex items-center gap-2">
-                            <span class="bg-black text-white w-6 h-6 rounded flex items-center justify-center text-xs font-bold">
-                                ${index + 1}
-                            </span>
-                            <div class="flex-1">
-                                <p class="font-semibold text-sm">${member.name}</p>
-                                <p class="text-xs text-gray-500">${member.rollNo} <span class="text-gray-400">| Sec ${member.section}</span></p>
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-2 flex-1">
+                                <span class="bg-black text-white w-6 h-6 rounded flex items-center justify-center text-xs font-bold">
+                                    ${index + 1}
+                                </span>
+                                <div class="flex-1">
+                                    <p class="font-semibold text-sm">${member.name}</p>
+                                    <p class="text-xs text-gray-500">${member.rollNo} <span class="text-gray-400">| Sec ${member.section}</span></p>
+                                </div>
                             </div>
+                            ${isAdmin ? `
+                            <button class="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 transition text-xs font-semibold edit-team-member-btn border border-blue-600"
+                                    data-rollno="${member.rollNo}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            ` : ''}
                         </div>
                     </div>
                 `).join('')}
@@ -582,6 +736,15 @@ function renderTeams() {
     `).join('');
 
     teamsList.innerHTML = warningMessage + teamsHTML;
+    
+    // Attach edit button handlers for team members (admin only)
+    document.querySelectorAll('.edit-team-member-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const rollNo = btn.dataset.rollno;
+            openEditStudentModal(rollNo);
+        });
+    });
 }
 
 // Delete a team (DISABLED - Only admin can delete via reset)
@@ -965,6 +1128,24 @@ function attachEventListeners() {
             }
         });
     }
+    
+    // Edit student modal listeners
+    document.getElementById('closeEditModalBtn').addEventListener('click', closeEditStudentModal);
+    document.getElementById('saveEditBtn').addEventListener('click', saveEditedStudent);
+    
+    // Close edit modal on outside click
+    document.getElementById('editStudentModal').addEventListener('click', (e) => {
+        if (e.target.id === 'editStudentModal') {
+            closeEditStudentModal();
+        }
+    });
+    
+    // Allow Enter key to save edit
+    document.getElementById('editStudentRollNo').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            saveEditedStudent();
+        }
+    });
 }
 
 // Hide splash screen
