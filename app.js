@@ -540,15 +540,28 @@ function renderTeams() {
         return;
     }
 
-    teamsList.innerHTML = teams.map((team, teamIndex) => `
+    // Add warning message about deleted teams
+    const warningMessage = `
+        <div class="col-span-2 bg-red-50 border-2 border-red-300 rounded-lg p-4 mb-4">
+            <div class="flex items-start gap-3">
+                <i class="fas fa-exclamation-triangle text-red-600 text-xl mt-1"></i>
+                <div>
+                    <h4 class="font-bold text-red-800 mb-1">⚠️ IMPORTANT NOTICE</h4>
+                    <p class="text-red-700 text-sm">
+                        Some mischievous students have been deleting teams! The delete option has been removed to prevent further disruptions. 
+                        If you need to modify a team, please contact the admin.
+                    </p>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const teamsHTML = teams.map((team, teamIndex) => `
         <div class="team-card rounded p-4">
             <div class="flex justify-between items-center mb-3 pb-2 border-b border-dashed border-gray-400">
                 <h3 class="font-bold text-base text-gray-900">
                     <span class="text-gray-500">#${teamIndex + 1}</span> ${team.name}
                 </h3>
-                <button class="text-gray-600 hover:text-black delete-team-btn text-xs font-bold" data-index="${teamIndex}">
-                    [DELETE]
-                </button>
             </div>
             <div class="space-y-2">
                 ${team.members.map((member, index) => `
@@ -568,33 +581,31 @@ function renderTeams() {
         </div>
     `).join('');
 
-    // Attach delete handlers
-    document.querySelectorAll('.delete-team-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const index = parseInt(e.target.closest('.delete-team-btn').dataset.index);
-            deleteTeam(index);
-        });
-    });
+    teamsList.innerHTML = warningMessage + teamsHTML;
 }
 
-// Delete a team
+// Delete a team (DISABLED - Only admin can delete via reset)
 function deleteTeam(index) {
-    if (confirm('Are you sure you want to delete this team?')) {
-        const team = teams[index];
-        team.members.forEach(member => {
-            availableStudents.push(member);
-        });
-        availableStudents.sort((a, b) => a.name.localeCompare(b.name));
-        
-        const firebaseKey = team.firebaseKey;
-        teams.splice(index, 1);
-        
-        deleteTeamFromFirebase(firebaseKey);
-        renderStudentList();
-        updateStatistics();
-        
-        showNotification('Team deleted successfully!', 'success');
-    }
+    showNotification('Team deletion has been disabled due to misuse. Please contact admin if you need to modify teams.', 'warning');
+    return;
+    
+    // Original code commented out to prevent deletion
+    // if (confirm('Are you sure you want to delete this team?')) {
+    //     const team = teams[index];
+    //     team.members.forEach(member => {
+    //         availableStudents.push(member);
+    //     });
+    //     availableStudents.sort((a, b) => a.name.localeCompare(b.name));
+    //     
+    //     const firebaseKey = team.firebaseKey;
+    //     teams.splice(index, 1);
+    //     
+    //     deleteTeamFromFirebase(firebaseKey);
+    //     renderStudentList();
+    //     updateStatistics();
+    //     
+    //     showNotification('Team deleted successfully!', 'success');
+    // }
 }
 
 // Update statistics
